@@ -8,17 +8,17 @@ export default function CategoryFilter({
   className = "",
 }) {
   return (
-    <div className={`flex items-center justify-center space-x-2 overflow-x-auto ${className}`}>
+    <div className={`flex gap-1 ${className}`}>
       {categories.map((cat) => (
         <button
           key={cat.value}
           onClick={() => onChange(cat.value)}
-          className={`
-            flex-shrink-0 px-3 py-1 rounded-full transition
-            ${selected === cat.value
+          className={
+            (selected === cat.value
               ? "bg-green-600 text-white"
-              : "bg-white text-gray-900 border border-green-300 hover:bg-green-100"}
-          `}
+              : "bg-white text-green-600 border border-green-600") +
+            " rounded-full px-3 py-1 text-sm transition"
+          }
         >
           {cat.label}
         </button>

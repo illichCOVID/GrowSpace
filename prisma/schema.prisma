@@ -32,6 +32,7 @@ model Plant {
   phone       String
   sellerId    Int?
   seller      User?    @relation("UserPlants", fields: [sellerId], references: [id])
+  category    String   @default("") // ← порожній рядок для всіх існуючих
   createdAt   DateTime @default(now())
 }
 

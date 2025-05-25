@@ -5,15 +5,13 @@ import prisma from "@/lib/prisma";
 import fs from "fs";
 import path from "path";
 
-export async function GET(request) {
+export async function GET() {
   try {
     const plants = await prisma.plant.findMany({
-      include: {
-        seller: { select: { id: true, name: true, email: true } },
-      },
+      include: { seller: { select: { id: true, name: true, email: true } } },
       orderBy: { createdAt: "desc" },
     });
-    return NextResponse.json(plants, { status: 200 });
+    return NextResponse.json(plants);
   } catch (err) {
     console.error("GET /api/plants error:", err);
     return NextResponse.json([], { status: 200 });
@@ -21,7 +19,7 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  // ⚠️ Асинхронно отримуємо куки
+  // 1) авторизація
   const cookieStore = await cookies();
   const cookie = cookieStore.get("user");
   if (!cookie) {
@@ -30,12 +28,13 @@ export async function POST(request) {
   const user = JSON.parse(cookie.value);
 
   try {
+    // 2) зчитуємо форму
     const formData = await request.formData();
     const name = formData.get("name");
     const description = formData.get("description");
     const care = formData.get("care");
     const priceStr = formData.get("price");
-    const phone = formData.get("phone");
+    const category = formData.get("category");
     const photoFile = formData.get("photo");
 
     if (!(photoFile instanceof File)) {
@@ -45,23 +44,24 @@ export async function POST(request) {
       );
     }
 
-    // Зберігаємо фото в public/uploads
+    // 3) зберігаємо зображення
     const buffer = Buffer.from(await photoFile.arrayBuffer());
-    const uploadsDir = path.join(process.cwd(), "public", "uploads");
+    const uploadsDir = path.join(process.cwd(), "public/uploads");
     await fs.promises.mkdir(uploadsDir, { recursive: true });
     const filename = `plant-${Date.now()}-${photoFile.name}`;
     await fs.promises.writeFile(path.join(uploadsDir, filename), buffer);
 
-    // Створюємо запис із прив’язкою sellerId = user.id
+    // 4) створюємо рослину, phone беремо з user.email
     const plant = await prisma.plant.create({
       data: {
         name,
         description,
         care,
         price: parseFloat(priceStr),
-        phone,
+        category,
         photo: `/uploads/${filename}`,
         sellerId: user.id,
+        phone: user.email, // ← обов'язкове поле заповнюємо email
       },
     });
 
