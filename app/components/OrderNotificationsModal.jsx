@@ -3,47 +3,42 @@
 import { useEffect, useState } from "react";
 
 export default function OrderNotificationsModal({ onClose }) {
-  const [orders, setOrders]   = useState([]);   // за замовчуванням — []
+  const [orders, setOrders]   = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Завантажуємо лише нові замовлення (status=new)
   useEffect(() => {
-    fetch("/api/orders?seller=new")
-      .then(r => r.json())
+    fetch("/api/orders?status=new")
+      .then(res => res.json())
       .then(data => setOrders(Array.isArray(data) ? data : []))
-      .catch(() => setOrders([]))
+      .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
 
+  // Оновлюємо статус і одразу прибираємо зі списку
   const updateStatus = async (id, status) => {
-    try {
-      await fetch(`/api/orders/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-      // Видаляємо виконане з локального списку
-      setOrders(prev => prev.filter(o => o.id !== id));
-    } catch (err) {
-      console.error("Помилка оновлення статусу", err);
-    }
+    await fetch(`/api/orders/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    setOrders(prev => prev.filter(o => o.id !== id));
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center"
-      onClick={onClose}
-    >
-      <div
-        className="relative bg-white rounded-2xl shadow-lg p-6 w-full max-w-xl animate-fadeInScale overflow-auto max-h-[80vh]"
-        onClick={e => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center">
+      <div className="relative bg-white rounded-2xl shadow-lg p-6 w-full max-w-xl animate-fadeInScale overflow-auto max-h-[80vh]">
+        {/* Кнопка закриття */}
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-500 hover:text-red-600 text-2xl"
         >
           ✕
         </button>
-        <h3 className="text-xl font-bold text-gray-800 mb-4">Нові замовлення</h3>
+
+        <h3 className="text-xl font-bold text-gray-800 mb-4">
+          Нові замовлення
+        </h3>
 
         {loading ? (
           <p className="text-gray-600">Завантаження…</p>
@@ -60,9 +55,9 @@ export default function OrderNotificationsModal({ onClose }) {
                   Адреса: {o.city}, відд. №{o.branch}
                 </p>
                 <p className="text-gray-700 mt-1 whitespace-pre-line">
-                  {(o.items || []).map(i =>
-                    `• ${i.name} × ${i.quantity} = ${i.price * i.quantity}₴`
-                  ).join("\n")}
+                  {o.items
+                    .map(i => `• ${i.name} × ${i.quantity} = ${i.price * i.quantity}₴`)
+                    .join("\n")}
                 </p>
                 <div className="flex justify-between items-center mt-3">
                   <span className="text-green-700 font-semibold">

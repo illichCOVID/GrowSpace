@@ -31,7 +31,6 @@ model Plant {
   price       Float
   phone       String
   sellerId    Int?
-  status      String   @default("new")
   seller      User?    @relation("UserPlants", fields: [sellerId], references: [id])
   category    String   @default("") // ← порожній рядок для всіх існуючих
   createdAt   DateTime @default(now())
@@ -46,6 +45,7 @@ model Order {
   items      Json
   total      Float
   sellerId   Int
+  status     String   @default("new")
   seller     User     @relation("UserOrders", fields: [sellerId], references: [id])
   createdAt  DateTime @default(now())
 }

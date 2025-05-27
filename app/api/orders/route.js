@@ -1,47 +1,50 @@
-// app/api/orders/route.js
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import prisma from "@/lib/prisma";
 
 export async function GET(request) {
-  try {
-    // (optional) you can filter to only the logged-in seller:
-    const cookieStore = await cookies();
-    const c = cookieStore.get("user");
-    if (!c) return NextResponse.json([], { status: 200 });
-    const { email } = JSON.parse(c.value);
-    // find the seller’s user record to get their id
-    const seller = await prisma.user.findUnique({ where: { email } });
-    if (!seller) return NextResponse.json([], { status: 200 });
-
-    const orders = await prisma.order.findMany({
-      where: { sellerId: seller.id },
-      orderBy: { createdAt: "desc" },
-    });
-    return NextResponse.json(orders, { status: 200 });
-  } catch (err) {
-    console.error("GET /api/orders error:", err);
-    return NextResponse.json([], { status: 200 });
+  // 1. Перевіряємо, що продавець залогінений
+  const cookieStore = await cookies();
+  const cookie = cookieStore.get("user");
+  if (!cookie) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const user = JSON.parse(cookie.value);
+
+  // 2. Зчитуємо параметр ?status=new (або інші, якщо потрібно)
+  const url = new URL(request.url);
+  const statusFilter = url.searchParams.get("status") || undefined;
+
+  // 3. Витягуємо лише ті замовлення, що належать цьому продавцю
+  //    і (за потреби) мають status = статус із параметра
+  const orders = await prisma.order.findMany({
+    where: {
+      sellerId: user.id,
+      ...(statusFilter ? { status: statusFilter } : {}),
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return NextResponse.json(orders);
 }
 
 export async function POST(request) {
+  // Створення нових замовлень (без змін)
   const { items, fullName, phone, city, branch, total } = await request.json();
 
-  // 1) check auth
+  // Авторизація
   const cookieStore = await cookies();
   const cookie = cookieStore.get("user");
-  if (!cookie)
+  if (!cookie) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const buyer = JSON.parse(cookie.value);
 
-  // 2) load plants & group, etc.
+  // Валідація sellerId у кожної рослини
   const plantIds = items.map((i) => i.id);
   const plants = await prisma.plant.findMany({
     where: { id: { in: plantIds } },
   });
-
-  // 3) ensure each has a sellerId
   const invalid = plants.filter((p) => !p.sellerId);
   if (invalid.length) {
     const names = invalid.map((p) => p.name).join(", ");
@@ -51,15 +54,14 @@ export async function POST(request) {
     );
   }
 
-  // 4) group by sellerId
+  // Групуємо по sellerId і створюємо по одній заявці на продавця
   const bySeller = {};
-  for (const item of items) {
-    (bySeller[item.sellerId] ??= []).push(item);
-  }
+  items.forEach((i) => {
+    (bySeller[i.sellerId] ||= []).push(i);
+  });
 
-  // 5) create one order per seller
   const created = [];
-  for (const [sid, sellerItems] of Object.entries(bySeller)) {
+  for (const [sellerId, sellerItems] of Object.entries(bySeller)) {
     const order = await prisma.order.create({
       data: {
         buyerName: fullName,
@@ -67,8 +69,8 @@ export async function POST(request) {
         city,
         branch,
         total,
-        sellerId: Number(sid),
-        items: sellerItems,
+        sellerId: Number(sellerId),
+        items: sellerItems, // json-поле
       },
     });
     created.push(order);

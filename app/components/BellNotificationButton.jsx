@@ -1,53 +1,55 @@
+// app/components/BellNotificationButton.jsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { FaBell } from "react-icons/fa";
 import OrderNotificationsModal from "./OrderNotificationsModal";
 
 export default function BellNotificationButton() {
-  const [orders, setOrders]       = useState([]);       // завжди масив
-  const [modalOpen, setModalOpen] = useState(false);
+  const [showModal, setShowModal]     = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  // Завантажуємо “нові” замовлення
-  const fetchOrders = async () => {
+  // Завантажуємо тільки нові замовлення для лічильника
+  const fetchCount = async () => {
     try {
-      const res  = await fetch("/api/orders?seller=new");
+      const res  = await fetch("/api/orders?status=new");
       const data = await res.json();
-      setOrders(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error("Помилка завантаження сповіщень", err);
-      setOrders([]);
+      if (Array.isArray(data)) {
+        setUnreadCount(data.length);
+      } else {
+        setUnreadCount(0);
+      }
+    } catch {
+      setUnreadCount(0);
     }
   };
 
+  // Підтягуємо кількість при монтуванні та щоразу, коли закриваємо модалку
   useEffect(() => {
-    fetchOrders();
-  }, []);
+    fetchCount();
+  }, [showModal]);
 
-  // Закриваємо модалку та оновлюємо лічильник
+  // Закриття модалки — скидаємо лічильник
   const handleClose = () => {
-    setModalOpen(false);
-    fetchOrders();
+    setShowModal(false);
+    setUnreadCount(0);
   };
-
-  const count = orders.length;
 
   return (
     <>
       <button
-        onClick={() => setModalOpen(true)}
+        onClick={() => setShowModal(true)}
         className="relative text-green-700 hover:text-green-800"
-        title="Нові замовлення"
       >
         <FaBell size={22} />
-        {count > 0 && (
+        {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
-            {count}
+            {unreadCount}
           </span>
         )}
       </button>
 
-      {modalOpen && <OrderNotificationsModal onClose={handleClose} />}
+      {showModal && <OrderNotificationsModal onClose={handleClose} />}
     </>
   );
 }
