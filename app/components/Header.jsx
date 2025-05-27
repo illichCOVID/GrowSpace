@@ -1,38 +1,35 @@
+// app/components/Header.jsx
 "use client";
 
 import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
 import { FaShoppingCart } from "react-icons/fa";
+
 import LoginModal from "./LoginModal";
-import AddPlantModal from "../components/AddPlantModal";
+import AddPlantModal from "./AddPlantModal";
 import CartModal from "./CartModal";
-import { useCart } from "../context/CartContext";  // Імпорт контексту кошика
+import BellNotificationButton from "./BellNotificationButton"; // ← правильний шлях
+import { useCart } from "../context/CartContext";
 
 export default function Header() {
   const [user, setUser] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [showModal, setShowModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
 
-  const { items, changeQuantity, total } = useCart();  // Використовуємо глобальний стейт
+  const { items, changeQuantity, total } = useCart();
 
   const profileRef = useRef(null);
-  let timer;
+  let closeTimer;
 
-  const fetchUser = async () => {
-    try {
-      const res = await fetch("/api/me");
-      const data = await res.json();
-      setUser(data.user);
-    } catch (err) {
-      console.error("Не вдалося отримати користувача", err);
-    }
-  };
-
+  // Завантажуємо поточного користувача
   useEffect(() => {
-    fetchUser();
+    fetch("/api/me")
+      .then(res => res.json())
+      .then(d => setUser(d.user))
+      .catch(() => setUser(null));
   }, []);
 
   const handleLogout = async () => {
@@ -42,14 +39,11 @@ export default function Header() {
   };
 
   const handleMouseEnter = () => {
-    clearTimeout(timer);
+    clearTimeout(closeTimer);
     setMenuOpen(true);
   };
-
   const handleMouseLeave = () => {
-    timer = setTimeout(() => {
-      setMenuOpen(false);
-    }, 200);
+    closeTimer = setTimeout(() => setMenuOpen(false), 200);
   };
 
   return (
@@ -69,10 +63,14 @@ export default function Header() {
           {user && (
             <button
               onClick={() => setShowAddModal(true)}
-              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-2xl px-4 py-2 font-semibold shadow-md transition duration-200"
+              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-2xl px-4 py-2 font-semibold shadow-md transition"
             >
               + Sell your plant
             </button>
+          )}
+
+          {user && (
+            <BellNotificationButton />
           )}
 
           <button
@@ -82,17 +80,17 @@ export default function Header() {
             <FaShoppingCart size={22} />
             {items.length > 0 && (
               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
-                {items.reduce((sum, i) => sum + i.quantity, 0)}
+                {items.reduce((sum, item) => sum + item.quantity, 0)}
               </span>
             )}
           </button>
 
           {user ? (
             <div
-              className="relative"
+              ref={profileRef}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
-              ref={profileRef}
+              className="relative"
             >
               <button className="flex items-center space-x-2 text-green-800 border border-green-300 rounded-full px-3 py-1 hover:bg-green-200 transition">
                 <img
@@ -125,7 +123,7 @@ export default function Header() {
               <button
                 onClick={() => {
                   setIsRegistering(false);
-                  setShowModal(true);
+                  setShowAuthModal(true);
                 }}
                 className="text-green-800 border border-green-300 rounded-xl px-3 py-1 hover:bg-green-200 transition"
               >
@@ -134,7 +132,7 @@ export default function Header() {
               <button
                 onClick={() => {
                   setIsRegistering(true);
-                  setShowModal(true);
+                  setShowAuthModal(true);
                 }}
                 className="text-green-800 border border-green-300 rounded-xl px-3 py-1 hover:bg-green-200 transition"
               >
@@ -145,14 +143,16 @@ export default function Header() {
         </div>
       </header>
 
-      {showModal && (
+      {showAuthModal && (
         <LoginModal
-          onClose={() => setShowModal(false)}
+          onClose={() => setShowAuthModal(false)}
           isRegistering={isRegistering}
-          switchMode={() => setIsRegistering((prev) => !prev)}
+          switchMode={() => setIsRegistering(prev => !prev)}
           onLoginSuccess={() => {
-            fetchUser();
-            setShowModal(false);
+            setShowAuthModal(false);
+            fetch("/api/me")
+              .then(res => res.json())
+              .then(d => setUser(d.user));
           }}
         />
       )}
