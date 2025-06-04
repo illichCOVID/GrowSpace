@@ -129,8 +129,8 @@ export default function OrderModal({ onClose, onOrderSaved }) {
           </div>
 
           {/* Сума */}
-          <div className="text-right font-semibold">
-            Сума: <span className="text-green-700">{total}₴</span>
+          <div className="text-right text-gray-800">
+            Сума: <span className="font-semibold text-green-700">{total}₴</span>
           </div>
 
           {/* Помилка */}
