@@ -1,68 +1,69 @@
+// app/api/profile/edit/route.js
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
-import { v4 as uuidv4 } from "uuid";
-import { writeFile } from "fs/promises";
-import path from "path";
 import { cookies } from "next/headers";
+import prisma from "@/lib/prisma";
+import fs from "fs";
+import path from "path";
 
-export async function POST(req) {
+export const runtime = "nodejs";
+
+export async function POST(request) {
   try {
-    const cookieStore = cookies();
+    // 1. Дочікуємося cookies()
+    const cookieStore = await cookies();
     const cookie = cookieStore.get("user");
-
     if (!cookie) {
-      return NextResponse.json(
-        { message: "Користувач не авторизований" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
     const userData = JSON.parse(cookie.value);
-    const user = await prisma.user.findUnique({
+
+    // 2. Розбираємо FormData із запиту
+    const formData = await request.formData();
+    const city = formData.get("city")?.toString() || "";
+    const bio = formData.get("bio")?.toString() || "";
+    const experience = formData.get("experience")?.toString() || "";
+    const avatarFile = formData.get("avatar");
+
+    // 3. Якщо файл аватара передано — збережіть його в public/avatars
+    let avatarUrl = userData.avatar || null;
+    if (avatarFile instanceof File) {
+      const buffer = Buffer.from(await avatarFile.arrayBuffer());
+      const avatarsDir = path.join(process.cwd(), "public", "avatars");
+      await fs.promises.mkdir(avatarsDir, { recursive: true });
+      const filename = `avatar-${userData.email}-${Date.now()}-${
+        avatarFile.name
+      }`;
+      const filepath = path.join(avatarsDir, filename);
+      await fs.promises.writeFile(filepath, buffer);
+      avatarUrl = `/avatars/${filename}`;
+    }
+
+    // 4. Оновлюємо користувача в БД (тут точно є city, bio, experience, avatar)
+    const updatedUser = await prisma.user.update({
       where: { email: userData.email },
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { message: "Користувача не знайдено" },
-        { status: 404 }
-      );
-    }
-
-    const formData = await req.formData();
-    const description = formData.get("description");
-    const experience = formData.get("experience");
-    const file = formData.get("avatar");
-
-    let avatarUrl = user.avatar;
-
-    if (file && typeof file === "object" && file.name) {
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const fileName = uuidv4() + path.extname(file.name);
-      const uploadPath = path.join(
-        process.cwd(),
-        "public",
-        "uploads",
-        fileName
-      );
-      await writeFile(uploadPath, buffer);
-      avatarUrl = `/uploads/${fileName}`;
-    }
-
-    await prisma.user.update({
-      where: { id: user.id },
       data: {
-        description,
+        city,
+        bio,
         experience,
         avatar: avatarUrl,
       },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        city: true,
+        bio: true,
+        experience: true,
+        avatar: true,
+      },
     });
 
-    return NextResponse.json({ message: "Профіль оновлено" });
-  } catch (error) {
-    console.error("Помилка редагування профілю:", error);
+    // 5. Повертаємо оновлені дані назад клієнту
+    return NextResponse.json({ user: updatedUser });
+  } catch (err) {
+    console.error("POST /api/profile/edit error:", err);
     return NextResponse.json(
-      { message: "Помилка оновлення профілю" },
+      { error: err.message || "Server error" },
       { status: 500 }
     );
   }

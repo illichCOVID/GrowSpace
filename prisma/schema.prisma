@@ -16,6 +16,7 @@ model User {
   avatar      String?
   bio         String?
   experience  String?
+  city        String? // ДОДАЄМО сюди
   createdAt   DateTime @default(now())
 
   plants Plant[] @relation("UserPlants")
