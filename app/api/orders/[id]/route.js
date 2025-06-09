@@ -1,26 +1,25 @@
-// app/api/orders/[id]/route.js
-
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import prisma from "@/lib/prisma";
 
-export const runtime = "nodejs"; // щоб Next.js точно запустив цей роут у Node.js (і дозволив працювати з cookies())
+export const runtime = "nodejs"; // Потрібно для cookies() в App Router
 
-// GET /api/orders/:id — повернути конкретне замовлення (тільки тому продавцю, кому воно належить)
-export async function GET(request, context) {
-  const { params } = await context;
+// GET /api/orders/:id — отримати конкретне замовлення
+export async function GET(req, { params }) {
   const id = Number(params.id);
 
-  // Авторизація
-  const cookieStore = await cookies();
+  const cookieStore = await cookies(); // ✅ await обов’язково
   const userCookie = cookieStore.get("user");
   if (!userCookie) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
   const user = JSON.parse(userCookie.value);
 
-  // Шукаймо замовлення і перевіряємо, що воно дійсно цього продавця
-  const order = await prisma.order.findUnique({ where: { id } });
+  const order = await prisma.order.findUnique({
+    where: { id },
+  });
+
   if (!order || order.sellerId !== user.id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -29,46 +28,42 @@ export async function GET(request, context) {
 }
 
 // PUT /api/orders/:id — оновити статус замовлення
-export async function PUT(request, context) {
-  const { params } = await context;
+export async function PUT(req, { params }) {
   const id = Number(params.id);
-
-  const body = await request.json();
+  const body = await req.json();
   const { status } = body;
 
-  // Перевірка валідності статусу
-  const allowed = ["new", "processing", "done"];
-  if (!allowed.includes(status)) {
+  const allowedStatuses = ["new", "processing", "done"];
+  if (!allowedStatuses.includes(status)) {
     return NextResponse.json(
       {
-        error: `Неприпустимий статус (має бути один із: ${allowed.join(", ")})`,
+        error: `Неприпустимий статус (має бути: ${allowedStatuses.join(", ")})`,
       },
       { status: 400 }
     );
   }
 
-  // Авторизація
-  const cookieStore = await cookies();
+  const cookieStore = await cookies(); // ✅ await
   const userCookie = cookieStore.get("user");
   if (!userCookie) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
   const user = JSON.parse(userCookie.value);
 
-  // Перевіряємо, що це замовлення справді належить цьому продавцю
-  const existing = await prisma.order.findUnique({
+  const existingOrder = await prisma.order.findUnique({
     where: { id },
     select: { sellerId: true },
   });
-  if (!existing || existing.sellerId !== user.id) {
+
+  if (!existingOrder || existingOrder.sellerId !== user.id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Оновлюємо статус
-  const updated = await prisma.order.update({
+  const updatedOrder = await prisma.order.update({
     where: { id },
     data: { status },
   });
 
-  return NextResponse.json(updated);
+  return NextResponse.json(updatedOrder);
 }

@@ -1,28 +1,39 @@
-// app/components/EditProfileModal.jsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { inputStyle } from "@/utils/tailwindStyles";
+import { useUser } from "../context/UserContext"; // ⬅️ Додано
 
-export default function EditProfileModal({ user, onClose, onSave }) {
-  const [formData, setFormData] = useState({
-    city: user?.city || "",
-    bio: user?.bio || "",
-    experience: user?.experience || "",
+export default function EditProfileModal({ onClose }) {
+  const { setUser } = useUser(); // ⬅️ Отримуємо глобальну функцію оновлення
+  const [form, setForm] = useState({
+    city: "",
+    bio: "",
+    experience: "",
   });
   const [avatarFile, setAvatarFile] = useState(null);
-  const [avatarPreview, setAvatarPreview] = useState(user?.avatar || null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Початково показуємо існуюче превʼю (якщо є)
   useEffect(() => {
-    if (user?.avatar) {
-      setAvatarPreview(user.avatar);
-    }
-  }, [user]);
+    fetch("/api/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.user) {
+          setForm({
+            city: data.user.city || "",
+            bio: data.user.bio || "",
+            experience: data.user.experience || "",
+          });
+          if (data.user.avatar) {
+            setAvatarPreview(data.user.avatar);
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
 
-  // Очищаємо помилку через 3 секунди
   useEffect(() => {
     if (error) {
       const t = setTimeout(() => setError(""), 3000);
@@ -31,15 +42,15 @@ export default function EditProfileModal({ user, onClose, onSave }) {
   }, [error]);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setAvatarFile(file);
-      setAvatarPreview(URL.createObjectURL(file));
+      const url = URL.createObjectURL(file);
+      setAvatarPreview(url);
     }
   };
 
@@ -49,25 +60,25 @@ export default function EditProfileModal({ user, onClose, onSave }) {
     setError("");
 
     try {
-      const fd = new FormData();
-      fd.append("city", formData.city);
-      fd.append("bio", formData.bio);
-      fd.append("experience", formData.experience);
+      const formData = new FormData();
+      formData.append("city", form.city);
+      formData.append("bio", form.bio);
+      formData.append("experience", form.experience);
       if (avatarFile) {
-        fd.append("avatar", avatarFile);
+        formData.append("avatar", avatarFile);
       }
 
       const res = await fetch("/api/profile/edit", {
         method: "POST",
-        body: fd,
+        body: formData,
       });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Не вдалося зберегти редагування");
+        throw new Error(data.error || "Не вдалося зберегти зміни");
       }
 
-      onSave(data.user); // передаємо оновлений об’єкт користувача в батьківський компонент
-      onClose();
+      setUser(data.user);  // ⬅️ Глобальне оновлення user-а
+      onClose();           // ⬅️ Закриття модалки
     } catch (err) {
       setError(err.message || "Помилка при збереженні");
     } finally {
@@ -76,9 +87,9 @@ export default function EditProfileModal({ user, onClose, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center">
       <div className="relative bg-white w-full max-w-3xl rounded-2xl shadow-lg p-6 flex animate-fadeInScale">
-        {/* Хрестик для закриття */}
+        {/* Кнопка закриття */}
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-500 hover:text-red-600 text-2xl"
@@ -86,7 +97,7 @@ export default function EditProfileModal({ user, onClose, onSave }) {
           ✕
         </button>
 
-        {/* Ліва частина: прев’ю аватара або банер */}
+        {/* Ліва частина з превʼю */}
         <div className="hidden md:block flex-1 pr-6">
           {avatarPreview ? (
             <img
@@ -103,41 +114,39 @@ export default function EditProfileModal({ user, onClose, onSave }) {
           )}
         </div>
 
-        {/* Форма з правого боку */}
+        {/* Форма */}
         <div className="flex-1">
           <h2 className="text-2xl font-bold mb-4 text-green-700 flex items-center gap-2">
-            <span>✏️</span> Редагування профілю
+            ✏️ Редагування профілю
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <input
               name="city"
-              value={formData.city}
+              value={form.city}
               onChange={handleChange}
               placeholder="Місто"
-              className={`${inputStyle} w-full`}
-              required
+              className={`${inputStyle} w-full border-green-300`}
             />
 
             <textarea
               name="bio"
-              value={formData.bio}
+              value={form.bio}
               onChange={handleChange}
               placeholder="Про себе..."
-              className={`${inputStyle} w-full h-24 resize-none`}
+              className={`${inputStyle} w-full h-24 resize-none rounded-xl border-green-300`}
             />
 
             <select
               name="experience"
-              value={formData.experience}
+              value={form.experience}
               onChange={handleChange}
-              className={`${inputStyle} w-full`}
-              required
+              className={`${inputStyle} w-full border-green-300`}
             >
               <option value="">— Оберіть досвід —</option>
               <option value="Початківець">🌱 Початківець</option>
               <option value="Любитель">🌿 Любитель</option>
               <option value="Професіонал">🌳 Професіонал</option>
-              <option value="Експерт">🏆 Експерт</option>
+              <option value="Експерт">🌟 Експерт</option>
             </select>
 
             <div>
@@ -146,7 +155,11 @@ export default function EditProfileModal({ user, onClose, onSave }) {
                 type="file"
                 accept="image/*"
                 onChange={handleAvatarChange}
-                className="block w-full text-sm text-gray-600 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-100 file:text-green-700 hover:file:bg-green-200 cursor-pointer"
+                className="block w-full text-sm text-gray-600 
+                  file:py-2 file:px-4 file:rounded-full 
+                  file:border-0 file:text-sm file:font-semibold 
+                  file:bg-green-100 file:text-green-700 
+                  hover:file:bg-green-200 cursor-pointer"
               />
             </div>
 
@@ -159,29 +172,15 @@ export default function EditProfileModal({ user, onClose, onSave }) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-full transition disabled:opacity-50"
+              className="w-full bg-green-600 hover:bg-green-700 
+                text-white py-2 rounded-full transition 
+                disabled:opacity-50"
             >
               {loading ? "Зберігаю..." : "Зберегти зміни"}
             </button>
           </form>
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes fadeInScale {
-          from {
-            opacity: 0;
-            transform: scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-        .animate-fadeInScale {
-          animation: fadeInScale 0.3s ease-out;
-        }
-      `}</style>
     </div>
   );
 }

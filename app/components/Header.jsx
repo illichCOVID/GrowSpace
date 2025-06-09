@@ -1,49 +1,41 @@
-// app/components/Header.jsx
 "use client";
-
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useEffect, useState, useRef } from "react";
 import { FaShoppingCart } from "react-icons/fa";
 
 import LoginModal from "./LoginModal";
 import AddPlantModal from "./AddPlantModal";
 import CartModal from "./CartModal";
-import BellNotificationButton from "./BellNotificationButton"; // ← правильний шлях
+import BellNotificationButton from "./BellNotificationButton";
 import { useCart } from "../context/CartContext";
+import { useUser } from "../context/UserContext";
 
 export default function Header() {
-  const [user, setUser] = useState(null);
+  const { user, setUser } = useUser();
+  const { items, changeQuantity, total } = useCart();
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
 
-  const { items, changeQuantity, total } = useCart();
+  const menuRef = useRef(null);
 
-  const profileRef = useRef(null);
-  let closeTimer;
-
-  // Завантажуємо поточного користувача
   useEffect(() => {
-    fetch("/api/me")
-      .then(res => res.json())
-      .then(d => setUser(d.user))
-      .catch(() => setUser(null));
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleLogout = async () => {
     await fetch("/api/logout", { method: "POST" });
     setUser(null);
     window.location.href = "/";
-  };
-
-  const handleMouseEnter = () => {
-    clearTimeout(closeTimer);
-    setMenuOpen(true);
-  };
-  const handleMouseLeave = () => {
-    closeTimer = setTimeout(() => setMenuOpen(false), 200);
   };
 
   return (
@@ -69,9 +61,7 @@ export default function Header() {
             </button>
           )}
 
-          {user && (
-            <BellNotificationButton />
-          )}
+          {user && <BellNotificationButton />}
 
           <button
             onClick={() => setCartOpen(true)}
@@ -86,17 +76,15 @@ export default function Header() {
           </button>
 
           {user ? (
-            <div
-              ref={profileRef}
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleMouseLeave}
-              className="relative"
-            >
-              <button className="flex items-center space-x-2 text-green-800 border border-green-300 rounded-full px-3 py-1 hover:bg-green-200 transition">
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setMenuOpen((prev) => !prev)}
+                className="flex items-center space-x-2 text-green-800 border border-green-300 rounded-full px-3 py-1 hover:bg-green-200 transition"
+              >
                 <img
-                  src="/default-avatar.png"
+                  src={user.avatar || "/default-avatar.png"}
                   alt="avatar"
-                  className="w-6 h-6 rounded-full"
+                  className="w-6 h-6 rounded-full object-cover border"
                 />
                 <span className="font-medium">{user.name}</span>
               </button>
@@ -147,12 +135,12 @@ export default function Header() {
         <LoginModal
           onClose={() => setShowAuthModal(false)}
           isRegistering={isRegistering}
-          switchMode={() => setIsRegistering(prev => !prev)}
+          switchMode={() => setIsRegistering((prev) => !prev)}
           onLoginSuccess={() => {
             setShowAuthModal(false);
             fetch("/api/me")
-              .then(res => res.json())
-              .then(d => setUser(d.user));
+              .then((res) => res.json())
+              .then((d) => setUser(d.user));
           }}
         />
       )}
