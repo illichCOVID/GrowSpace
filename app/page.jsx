@@ -76,7 +76,7 @@ export default function Home() {
         <SortSelect
           value={sortOption}
           onChange={setSortOption}
-          className="w-32"
+          className="w-29 min-w-[133px]"
         />
       </div>
 

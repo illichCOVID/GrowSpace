@@ -1,4 +1,3 @@
-// app/api/profile/edit/route.js
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import fs from "fs";
@@ -10,7 +9,7 @@ export const runtime = "nodejs"; // Використання Node.js
 export async function POST(request) {
   try {
     // Авторизація через cookie
-    const cookieStore = cookies();
+    const cookieStore = await cookies(); // додано await
     const userCookie = cookieStore.get("user");
 
     if (!userCookie) {

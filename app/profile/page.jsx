@@ -131,15 +131,17 @@ export default function ProfilePage() {
                 <div className="mt-4 flex justify-between">
                   <button
                     onClick={() => deletePlant(p.id)}
-                    className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-full"
+                    className="bg-red-100 hover:bg-red-200 text-red-600 px-3 py-1 rounded-xl shadow-sm transition font-semibold"
+                    aria-label="Видалити рослину"
                   >
-                    <FaTrash />
+                    Видалити
                   </button>
                   <button
                     onClick={() => openEditPlant(p)}
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-full"
+                    className="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1 rounded-xl shadow-sm transition font-semibold"
+                    aria-label="Редагувати рослину"
                   >
-                    <FaEdit />
+                    Редагувати
                   </button>
                 </div>
               </div>
