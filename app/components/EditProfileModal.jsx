@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { inputStyle } from "@/utils/tailwindStyles";
-import { useUser } from "../context/UserContext"; // ⬅️ Додано
+import { useUser } from "../context/UserContext";
 
 export default function EditProfileModal({ onClose }) {
-  const { setUser } = useUser(); // ⬅️ Отримуємо глобальну функцію оновлення
+  const { setUser } = useUser();
   const [form, setForm] = useState({
     city: "",
     bio: "",
@@ -77,8 +77,8 @@ export default function EditProfileModal({ onClose }) {
         throw new Error(data.error || "Не вдалося зберегти зміни");
       }
 
-      setUser(data.user);  // ⬅️ Глобальне оновлення user-а
-      onClose();           // ⬅️ Закриття модалки
+      setUser(data.user);  // Оновлення глобального користувача
+      onClose();           // Закриття модалки
     } catch (err) {
       setError(err.message || "Помилка при збереженні");
     } finally {

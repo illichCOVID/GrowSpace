@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { FaEdit, FaTrash } from "react-icons/fa";
 import EditProfileModal from "../components/EditProfileModal";
 import EditPlantModal from "../components/EditPlantModal";
 import { useUser } from "../context/UserContext";
@@ -41,15 +40,23 @@ export default function ProfilePage() {
   const deletePlant = async (id) => {
     try {
       const res = await fetch(`/api/plants/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        setPlants((prev) => prev.filter((p) => p.id !== id));
-        setSuccess(true);
-        setTimeout(() => setSuccess(false), 3000);
-      } else {
-        throw new Error();
+
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        // Якщо відповідь без тіла, пропускаємо помилку
       }
-    } catch {
-      alert("Не вдалося видалити рослину");
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Не вдалося видалити рослину");
+      }
+
+      setPlants((prev) => prev.filter((p) => p.id !== id));
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (error) {
+      alert(error.message || "Не вдалося видалити рослину");
     }
   };
 
@@ -84,7 +91,12 @@ export default function ProfilePage() {
       <section className="bg-white p-6 rounded-lg shadow flex flex-col md:flex-row items-center gap-6">
         <div className="w-24 h-24 relative">
           {user.avatar ? (
-            <Image src={user.avatar} alt="Аватар" fill className="object-cover rounded-full" />
+            <Image
+              src={user.avatar}
+              alt="Аватар"
+              fill
+              className="object-cover rounded-full"
+            />
           ) : (
             <div className="w-full h-full bg-gray-200 rounded-full flex items-center justify-center">
               <span className="text-gray-500 text-xl">?</span>
@@ -121,9 +133,17 @@ export default function ProfilePage() {
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
             {plants.map((p) => (
-              <div key={p.id} className="bg-white rounded-lg shadow p-4 transition hover:shadow-lg">
+              <div
+                key={p.id}
+                className="bg-white rounded-lg shadow p-4 transition hover:shadow-lg"
+              >
                 <div className="relative w-full h-44 mb-3 rounded overflow-hidden">
-                  <Image src={p.photo} alt={p.name} fill className="object-cover" />
+                  <Image
+                    src={p.photo}
+                    alt={p.name}
+                    fill
+                    className="object-cover"
+                  />
                 </div>
                 <h3 className="text-lg font-semibold text-green-800">{p.name}</h3>
                 <p className="text-gray-800">{p.description}</p>
@@ -170,10 +190,22 @@ export default function ProfilePage() {
 
       <style jsx>{`
         @keyframes fadeInOut {
-          0% { opacity: 0; transform: translateY(-10px); }
-          10% { opacity: 1; transform: translateY(0); }
-          90% { opacity: 1; transform: translateY(0); }
-          100% { opacity: 0; transform: translateY(-10px); }
+          0% {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          10% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+          90% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
         }
         .animate-fadeInOut {
           animation: fadeInOut 3s ease-in-out;

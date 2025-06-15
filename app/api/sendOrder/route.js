@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useCart } from "../context/CartContext";
+import { useCart } from "@/context/CartContext";
 
 export default function OrderModal({ onClose, sellerEmail }) {
   const { items, clearCart, total } = useCart();
